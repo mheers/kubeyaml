@@ -156,3 +156,12 @@ func NewUnknownFormatError(format string) error {
 		Format: format,
 	}
 }
+
+type EmptyDocument struct{}
+
+func (e *EmptyDocument) Error() string {
+	return fmt.Sprintf("empty document")
+}
+func NewEmptyDocument() error {
+	return &EmptyDocument{}
+}

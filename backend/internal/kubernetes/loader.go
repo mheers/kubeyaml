@@ -23,17 +23,11 @@ func NewLoader() *Loader {
 	return &Loader{}
 }
 
-// Load reads the input and returns the internal type representing the top level document
+// LoadManifest returns the internal type representing the top level document
 // that is properly cleaned.
-func (l *Loader) Load(reader io.Reader) (*Input, error) {
-	b, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read incoming reader: %v", err)
-	}
-
-	incoming := map[interface{}]interface{}{}
-	if err := yaml.Unmarshal(b, incoming); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal yaml with error %v", err)
+func (l *Loader) LoadManifest(incoming map[interface{}]interface{}) (*Input, error) {
+	if incoming == nil {
+		return nil, NewEmptyDocument()
 	}
 
 	val, ok := incoming["apiVersion"]
@@ -63,4 +57,19 @@ func (l *Loader) Load(reader io.Reader) (*Input, error) {
 		Kind:       kind,
 		Data:       incoming,
 	}, nil
+}
+
+// Load reads the input and returns the internal type representing the top level document
+// that is properly cleaned (via LoadManifest)
+func (l *Loader) Load(reader io.Reader) (*Input, error) {
+	b, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read incoming reader: %v", err)
+	}
+
+	incoming := map[interface{}]interface{}{}
+	if err := yaml.Unmarshal(b, incoming); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal yaml with error %v", err)
+	}
+	return l.LoadManifest(incoming)
 }

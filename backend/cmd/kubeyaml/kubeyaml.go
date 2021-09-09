@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/chuckha/kubeyaml.com/backend/internal/kubernetes"
+	yaml "gopkg.in/yaml.v2"
 )
 
 /*
@@ -27,9 +27,10 @@ contents
 */
 
 type options struct {
-	Versions []string
-	versions *string
-	silent   *bool
+	Versions    []string
+	versions    *string
+	silent      *bool
+	ignoreEmpty *bool
 }
 
 func (o *options) Validate() error {
@@ -52,6 +53,7 @@ func run(in io.Reader, out io.Writer, args ...string) error {
 	validate := flag.NewFlagSet("validate", flag.ExitOnError)
 	opts.versions = validate.String("versions", "1.19,1.18,1.17,1.16,1.15", "comma separated list of kubernetes versions to validate against")
 	opts.silent = validate.Bool("silent", false, "if true, kubeyaml will not print any output")
+	opts.ignoreEmpty = validate.Bool("ignore-empty", false, "if true, kubeyaml will not treat empty YAML documents as error")
 	validate.Parse(args)
 	err := opts.Validate()
 	if err != nil {
@@ -62,40 +64,57 @@ func run(in io.Reader, out io.Writer, args ...string) error {
 	gf := kubernetes.NewAPIKeyer("io.k8s.api", ".k8s.io")
 
 	// Read the input
-	reader := bufio.NewReader(in)
 	var input bytes.Buffer
-	readerCopy := io.TeeReader(reader, &input)
-	i, err := loader.Load(readerCopy)
-	if err != nil {
-		return &mainError{input.String(), err}
-	}
+	readerCopy := io.TeeReader(in, &input)
 
-	aggregatedErrors := &aggErr{}
-	for _, version := range opts.Versions {
-		reslover, err := kubernetes.NewResolver(version)
+	// Split input YAML into separate documents
+	d := yaml.NewDecoder(readerCopy)
+	for {
+		var obj map[interface{}]interface{}
+		err := d.Decode(&obj)
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			aggregatedErrors.Add(fmt.Errorf("%s: %v", version, err))
-			continue
+			panic(err)
 		}
-		validator := kubernetes.NewValidator(reslover)
-
-		schema, err := reslover.Resolve(gf.APIKey(i.APIVersion, i.Kind))
+		i, err := loader.LoadManifest(obj)
 		if err != nil {
-			aggregatedErrors.Add(fmt.Errorf("%s: %v", version, err))
-			continue
-		}
-
-		if len(aggregatedErrors.errors) > 0 {
-			return aggregatedErrors
-		}
-
-		errors := validator.Validate(i.Data, schema)
-		if len(errors) > 0 {
-			if !*opts.silent {
-				fmt.Fprintln(out, string(redbg(errors[0].Error())))
-				fmt.Fprintln(out, colorize(errors[0], input.Bytes()))
+			_, ok := err.(*kubernetes.EmptyDocument)
+			if ok && *opts.ignoreEmpty {
+				continue
+			} else {
+				return &mainError{input.String(), err}
 			}
-			return &aggErr{errors}
+		}
+
+		aggregatedErrors := &aggErr{}
+		for _, version := range opts.Versions {
+			reslover, err := kubernetes.NewResolver(version)
+			if err != nil {
+				aggregatedErrors.Add(fmt.Errorf("%s: %v", version, err))
+				continue
+			}
+			validator := kubernetes.NewValidator(reslover)
+
+			schema, err := reslover.Resolve(gf.APIKey(i.APIVersion, i.Kind))
+			if err != nil {
+				aggregatedErrors.Add(fmt.Errorf("%s: %v", version, err))
+				continue
+			}
+
+			if len(aggregatedErrors.errors) > 0 {
+				return aggregatedErrors
+			}
+
+			errors := validator.Validate(i.Data, schema)
+			if len(errors) > 0 {
+				if !*opts.silent {
+					fmt.Fprintln(out, string(redbg(errors[0].Error())))
+					fmt.Fprintln(out, colorize(errors[0], input.Bytes()))
+				}
+				return &aggErr{errors}
+			}
 		}
 	}
 	return nil
