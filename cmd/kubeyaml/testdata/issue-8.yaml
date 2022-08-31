@@ -16,15 +16,15 @@ spec:
         example: example
     spec:
       containers:
-      - image: example.com/example/example
-        imagePullPolicy: Always
-        name: manager
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: lib-module
-          mountPath: /lib/modules
-          readOnly: true
+        - image: example.com/example/example
+          imagePullPolicy: Always
+          name: manager
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: lib-module
+              mountPath: /lib/modules
+              readOnly: true
       volumes:
-      - hostPath:
-          path: /lib/modules
+        - hostPath:
+            path: /lib/modules
