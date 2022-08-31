@@ -3,7 +3,7 @@ package kubernetes_test
 import (
 	"testing"
 
-	"github.com/chuckha/kubeyaml.com/backend/internal/kubernetes"
+	"github.com/mheers/kubeyaml/internal/kubernetes"
 )
 
 func TestAPIKey(t *testing.T) {

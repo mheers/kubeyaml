@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chuckha/kubeyaml.com/backend/internal/kubernetes"
+	"github.com/mheers/kubeyaml/internal/kubernetes"
 )
 
 type badReader struct{}
@@ -49,7 +49,7 @@ func TestLoader(t *testing.T) {
 			},
 		},
 		{
-			name: "bad yaml should throw an error",
+			name:  "bad yaml should throw an error",
 			input: strings.NewReader("	a tab"),
 			check: func(i *kubernetes.Input, err error, t *testing.T) {
 				if err == nil {

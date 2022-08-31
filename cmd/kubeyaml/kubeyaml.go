@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/chuckha/kubeyaml.com/backend/internal/kubernetes"
+	"github.com/mheers/kubeyaml/internal/kubernetes"
 )
 
 /*

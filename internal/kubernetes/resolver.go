@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chuckha/kubeyaml.com/backend/internal/kubernetes/data"
+	"github.com/mheers/kubeyaml/internal/kubernetes/data"
 )
 
 // Resolver looks up a schema based on the schema key.

@@ -1,6 +1,6 @@
-module github.com/chuckha/kubeyaml.com/backend
+module github.com/mheers/kubeyaml
 
-go 1.13
+go 1.19
 
 require (
 	github.com/pkg/errors v0.9.1
