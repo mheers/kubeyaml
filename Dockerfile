@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine
+FROM golang:1.19-alpine as builder
 WORKDIR /kubeyaml
 ADD go.mod .
 ADD go.sum .
@@ -6,12 +6,7 @@ RUN go mod download
 ADD . /kubeyaml
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o kubeyaml ./cmd/kubeyaml
 
-FROM alpine:3.17
-ARG USER=default
-ENV HOME /home/$USER
+FROM alpine:3.16
 
-USER $USER
-WORKDIR $HOME
-
-COPY --from=0 /kubeyaml/kubeyaml ./kubeyaml
-ENTRYPOINT [ "./kubeyaml" ]
+COPY --from=builder /kubeyaml/kubeyaml /usr/bin/kubeyaml
+ENTRYPOINT [ "/usr/bin/kubeyaml" ]
