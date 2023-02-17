@@ -1,12 +1,29 @@
-FROM golang:1.19-alpine as builder
-WORKDIR /kubeyaml
-ADD go.mod .
-ADD go.sum .
+FROM --platform=$BUILDPLATFORM golang:1.20-alpine as builder
+
+RUN apk add --no-cache bash git
+
+WORKDIR /workspace
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
 RUN go mod download
-ADD . /kubeyaml
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o kubeyaml ./cmd/kubeyaml
 
-FROM alpine:3.16
+COPY / /workspace
 
-COPY --from=builder /kubeyaml/kubeyaml /usr/bin/kubeyaml
-ENTRYPOINT [ "/usr/bin/kubeyaml" ]
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+RUN [ "$(uname)" = Darwin ] && system=darwin || system=linux; \
+    ./ci/go-build.sh --os ${system} --arch $(echo $TARGETPLATFORM  | cut -d/ -f2)
+
+FROM --platform=$TARGETPLATFORM alpine
+
+RUN apk add --no-cache docker-cli
+
+COPY --from=builder /workspace/goapp /usr/bin/kubeyaml
+
+# Run the binary.
+ENTRYPOINT ["/usr/bin/kubeyaml"]
